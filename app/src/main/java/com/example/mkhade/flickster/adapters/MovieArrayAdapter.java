@@ -3,6 +3,7 @@ package com.example.mkhade.flickster.adapters;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.PorterDuff;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.util.Log;
@@ -27,6 +28,8 @@ import java.util.concurrent.ExecutionException;
 
 import jp.wasabeef.picasso.transformations.RoundedCornersTransformation;
 
+import static android.icu.lang.UCharacter.GraphemeClusterBreak.L;
+
 /**
  * Created by mkhade on 10/14/2016.
  */
@@ -38,52 +41,84 @@ public class MovieArrayAdapter extends ArrayAdapter<Movie> {
         TextView tvOverview;
     }
 
+    private static class ViewHolder_popular {
+        ImageView ivpopImage;
+    }
+
     public MovieArrayAdapter(Context context, List<Movie> movies) {
         super(context, android.R.layout.simple_list_item_1, movies);
     }
 
     @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
+    public int getViewTypeCount() {
+        return Movie.Popularity.values().length;
+    }
 
-        ViewHolder viewHolder;
-        if(convertView == null){
+    @Override
+    public int getItemViewType(int position) {
+        return getItem(position).getPopularity().getValue();
+    }
 
-            LayoutInflater inflater = LayoutInflater.from(getContext());
-            convertView = inflater.inflate(R.layout.item_movie, parent, false);
-
-            viewHolder = new ViewHolder();
-            viewHolder.ivImage = (ImageView) convertView.findViewById(R.id.ivMovieImage);
-            viewHolder.tvTitle = (TextView) convertView.findViewById(R.id.tvTitle);
-            viewHolder.tvOverview = (TextView) convertView.findViewById(R.id.tvOverview);
-
-            convertView.setTag(viewHolder);
+    private View getInflatedLayoutForType(int type) {
+        if (type == Movie.Popularity.MORETHAN5.ordinal()) {
+            return LayoutInflater.from(getContext()).inflate(R.layout.popular_movie, null);
+        } else if (type == Movie.Popularity.LESSTHAN5.ordinal()) {
+            return LayoutInflater.from(getContext()).inflate(R.layout.item_movie, null);
         } else {
-            viewHolder = (ViewHolder) convertView.getTag();
+            return null;
         }
+    }
 
+    @Override
+    public View getView(int position, View vi, ViewGroup parent) {
         Movie movie = getItem(position);
-        if (movie == null) throw new AssertionError("Movie cannot be null");
-/*
-        ImageView ivImage = (ImageView) convertView.findViewById(R.id.ivMovieImage) ;
-        ivImage.setImageResource(0);
-        Log.d("DEBUGGGGGG", movie.getPoster_path());
-*/
-        viewHolder.ivImage.setImageBitmap(getBitmapFromUrl(movie.getPoster_path()));
-        //Picasso.with(getContext()).load(movie.getPoster_path()).fit().centerCrop().transform(new RoundedCornersTransformation(10, 10)).into(viewHolder.ivImage);
-        Picasso.with(getContext()).load(movie.getPoster_path()).resize(500,0).centerCrop().placeholder(R.drawable.coming_soon).transform(new RoundedCornersTransformation(10, 10)).into(viewHolder.ivImage);
+        if (movie == null) { Log.e("ERROR", "Movie cannot be null"); return null; }
 
-        viewHolder.tvTitle.setText(movie.getOriginal_title());
-        viewHolder.tvOverview.setText(movie.getOverview());
+        int viewType = this.getItemViewType(position);
+        switch (viewType) {
+            case 0: //MORETHAN5
 
-/*
-        TextView tvTitle = (TextView) convertView.findViewById(R.id.tvTitle);
-        tvTitle.setText(movie.getOriginal_title());
+                ViewHolder_popular viewHolder_popular;
+                View convertView = vi;
+                if (convertView == null) {
+                    LayoutInflater inflater = LayoutInflater.from(getContext());
+                    convertView = inflater.inflate(R.layout.popular_movie, parent, false);
+                    viewHolder_popular = new ViewHolder_popular();
+                    viewHolder_popular.ivpopImage = (ImageView) convertView.findViewById(R.id.ivpopView);
+                    convertView.setTag(viewHolder_popular);
+                } else {
+                    viewHolder_popular = (ViewHolder_popular) convertView.getTag();
+                }
 
-        TextView tvOverview = (TextView) convertView.findViewById(R.id.tvOverview);
-        tvOverview.setText(movie.getOverview());
-*/
+                viewHolder_popular.ivpopImage.setImageBitmap(getBitmapFromUrl(movie.getPoster_path()));
+                Picasso.with(getContext()).load(movie.getPoster_path()).resize(500,0).centerCrop().placeholder(R.drawable.coming_soon).transform(new RoundedCornersTransformation(10, 10)).into(viewHolder_popular.ivpopImage);
+                return convertView;
 
-        return convertView;
+            case 1: //LESSTHAN5
+                ViewHolder viewHolder;
+                convertView = vi;
+                if (convertView == null) {
+                    LayoutInflater inflater = LayoutInflater.from(getContext());
+                    convertView = inflater.inflate(R.layout.item_movie, parent, false);
+                    viewHolder = new ViewHolder();
+                    viewHolder.ivImage = (ImageView) convertView.findViewById(R.id.ivMovieImage);
+                    viewHolder.tvTitle = (TextView) convertView.findViewById(R.id.tvTitle);
+                    viewHolder.tvOverview = (TextView) convertView.findViewById(R.id.tvOverview);
+                    convertView.setTag(viewHolder);
+                } else {
+                    viewHolder = (ViewHolder) convertView.getTag();
+                }
+                viewHolder.ivImage.setImageBitmap(getBitmapFromUrl(movie.getPoster_path()));
+                Picasso.with(getContext()).load(movie.getPoster_path()).resize(500,0).centerCrop().placeholder(R.drawable.coming_soon).transform(new RoundedCornersTransformation(10, 10)).into(viewHolder.ivImage);
+                viewHolder.tvTitle.setText(movie.getOriginal_title());
+                viewHolder.tvOverview.setText(movie.getOverview());
+                return convertView;
+
+            default:
+                Log.e("ERROR", "Wrong type: " + viewType);
+                break;
+        }
+        return null;
     }
 
     public Bitmap getBitmapFromUrl(String url){
